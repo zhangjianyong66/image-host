@@ -1,0 +1,5 @@
+{"file":".trellis/spec/backend/index.md","reason":"检查后端实现是否符合当前规范状态和基本质量要求。"}
+{"file":".trellis/spec/frontend/index.md","reason":"检查前端实现是否符合当前规范状态和基本质量要求。"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"核对登录态、上传校验、文件落盘和公开链接的端到端数据流。"}
+{"file":".trellis/tasks/07-29-local-image-upload-auth/prd.md","reason":"依据可观察验收条件检查完整功能。"}
+{"file":".trellis/tasks/07-29-local-image-upload-auth/research/server-environment.md","reason":"核对部署是否适配 ecs2 现有 Nginx、共享服务和 SSL 自动续期机制。"}

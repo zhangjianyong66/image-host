@@ -1,0 +1,26 @@
+[Unit]
+Description=Image Host Service
+After=network.target
+
+[Service]
+Type=simple
+User=imagehost
+Group=imagehost
+WorkingDirectory=/var/lib/image-host
+EnvironmentFile=/etc/image-host/image-host.env
+ExecStart=/opt/image-host/current/image-host
+Restart=always
+RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/image-host/uploads
+
+[Install]
+WantedBy=multi-user.target

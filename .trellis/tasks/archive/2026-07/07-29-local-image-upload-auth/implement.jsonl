@@ -1,0 +1,5 @@
+{"file":".trellis/spec/backend/index.md","reason":"后端规范入口；当前项目尚无既定后端实现约定。"}
+{"file":".trellis/spec/frontend/index.md","reason":"前端规范入口；当前项目尚无既定前端实现约定。"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"登录、上传、存储和公开访问涉及跨层数据流与验证边界。"}
+{"file":".trellis/tasks/07-29-local-image-upload-auth/design.md","reason":"本任务的架构、接口、安全和持久化设计。"}
+{"file":".trellis/tasks/07-29-local-image-upload-auth/research/server-environment.md","reason":"ecs2 的 Nginx、systemd、端口、现有服务和 SSL 续期实际约束。"}

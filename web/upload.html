@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>上传图片 | Image Host</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="workspace-page">
+  <header class="topbar">
+    <a class="wordmark" href="/upload" aria-label="Image Host 上传首页">
+      <span class="wordmark-symbol" aria-hidden="true"></span>
+      <span>Image Host</span>
+    </a>
+    <div class="topbar-actions">
+      <span class="secure-state"><span aria-hidden="true"></span>安全会话</span>
+      <button class="quiet-button" id="logout-button" type="button">退出</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="workspace-heading">
+      <div>
+        <p class="section-label">NEW IMAGE</p>
+        <h1>上传图片</h1>
+      </div>
+      <p>单张最大 10 MiB</p>
+    </section>
+
+    <section class="upload-stage" aria-labelledby="drop-title">
+      <input id="file-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+      <button class="drop-zone" id="drop-zone" type="button">
+        <span class="upload-symbol" aria-hidden="true">↑</span>
+        <span class="drop-title" id="drop-title">拖放图片到这里</span>
+        <span class="drop-subtitle">或点击选择文件</span>
+        <span class="format-line compact" aria-hidden="true">
+          <span>JPEG</span><span>PNG</span><span>GIF</span><span>WEBP</span>
+        </span>
+      </button>
+
+      <div class="selection" id="selection" hidden>
+        <div class="preview-frame">
+          <img id="preview" alt="待上传图片预览">
+        </div>
+        <div class="file-details">
+          <p class="file-name" id="file-name"></p>
+          <p class="file-meta" id="file-meta"></p>
+          <div class="selection-actions">
+            <button class="primary-button" id="upload-button" type="button">开始上传</button>
+            <button class="quiet-button" id="replace-button" type="button">重新选择</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="upload-progress" id="upload-progress" hidden aria-live="polite">
+        <div class="progress-copy"><span>正在安全上传</span><span id="progress-value">0%</span></div>
+        <div class="progress-track"><span id="progress-bar"></span></div>
+      </div>
+
+      <div class="result" id="result" hidden aria-live="polite">
+        <div class="result-status"><span aria-hidden="true">✓</span><strong>上传完成</strong></div>
+        <div class="result-body">
+          <img id="result-image" alt="已上传图片">
+          <div class="result-link-block">
+            <label for="result-url">公开链接</label>
+            <div class="copy-row">
+              <input id="result-url" type="text" readonly>
+              <button class="primary-button copy-button" id="copy-button" type="button">复制链接</button>
+            </div>
+            <p class="form-message success" id="copy-message" role="status"></p>
+          </div>
+        </div>
+        <button class="quiet-button" id="upload-another" type="button">继续上传</button>
+      </div>
+
+      <p class="form-message upload-error" id="upload-message" role="alert"></p>
+    </section>
+  </main>
+
+  <footer class="workspace-footer">
+    <span>本地持久化存储</span><span>公开链接无需登录</span>
+  </footer>
+  <script src="/assets/upload.js" defer></script>
+</body>
+</html>

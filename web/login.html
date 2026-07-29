@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>登录 | Image Host</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="brand-block" aria-labelledby="brand-title">
+      <div class="brand-mark" aria-hidden="true"><span></span></div>
+      <p class="eyebrow">PRIVATE UPLOAD</p>
+      <h1 id="brand-title">Image Host</h1>
+      <p class="brand-copy">登录后上传，链接随处可用。</p>
+      <div class="format-line" aria-label="支持的图片格式">
+        <span>JPEG</span><span>PNG</span><span>GIF</span><span>WEBP</span>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-labelledby="login-title">
+      <div>
+        <p class="section-label">ACCESS</p>
+        <h2 id="login-title">输入访问密码</h2>
+      </div>
+      <form id="login-form" novalidate>
+        <label for="password">密码</label>
+        <div class="password-field">
+          <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+          <button class="icon-button" id="toggle-password" type="button" aria-label="显示密码" title="显示密码">
+            <span class="eye-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+        <p class="form-message" id="login-message" role="status" aria-live="polite"></p>
+        <button class="primary-button" id="login-button" type="submit">
+          <span>进入上传台</span><span aria-hidden="true">→</span>
+        </button>
+      </form>
+    </section>
+  </main>
+  <script src="/assets/login.js" defer></script>
+</body>
+</html>
