@@ -1,0 +1,6 @@
+/image-host
+/dist/
+/uploads/*
+!/uploads/.gitkeep
+*.test
+coverage.out
