@@ -1,10 +1,26 @@
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+const FILE_TYPES = new Map([
+  ['jpg', { mime: 'image/jpeg', label: 'JPEG', image: true }],
+  ['jpeg', { mime: 'image/jpeg', label: 'JPEG', image: true }],
+  ['png', { mime: 'image/png', label: 'PNG', image: true }],
+  ['gif', { mime: 'image/gif', label: 'GIF', image: true }],
+  ['webp', { mime: 'image/webp', label: 'WEBP', image: true }],
+  ['pdf', { mime: 'application/pdf', label: 'PDF', image: false }],
+  ['epub', { mime: 'application/epub+zip', label: 'EPUB', image: false }],
+  ['txt', { mime: 'text/plain', label: 'TXT', image: false }],
+  ['md', { mime: 'text/markdown', label: 'MD', image: false }],
+  ['docx', { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'DOCX', image: false }],
+  ['xlsx', { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', label: 'XLSX', image: false }],
+  ['pptx', { mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', label: 'PPTX', image: false }],
+]);
 
 const fileInput = document.querySelector('#file-input');
 const dropZone = document.querySelector('#drop-zone');
 const selection = document.querySelector('#selection');
 const preview = document.querySelector('#preview');
+const selectionDocument = document.querySelector('#selection-document');
+const selectionDocumentType = document.querySelector('#selection-document-type');
 const fileName = document.querySelector('#file-name');
 const fileMeta = document.querySelector('#file-meta');
 const uploadButton = document.querySelector('#upload-button');
@@ -14,6 +30,8 @@ const progressValue = document.querySelector('#progress-value');
 const progressBar = document.querySelector('#progress-bar');
 const result = document.querySelector('#result');
 const resultImage = document.querySelector('#result-image');
+const resultDocument = document.querySelector('#result-document');
+const resultDocumentType = document.querySelector('#result-document-type');
 const resultURL = document.querySelector('#result-url');
 const copyButton = document.querySelector('#copy-button');
 const copyMessage = document.querySelector('#copy-message');
@@ -22,6 +40,7 @@ const uploadMessage = document.querySelector('#upload-message');
 const logoutButton = document.querySelector('#logout-button');
 
 let selectedFile = null;
+let selectedType = null;
 let previewURL = '';
 
 function formatBytes(bytes) {
@@ -36,6 +55,7 @@ function resetPreviewURL() {
 
 function rejectFile(message) {
   selectedFile = null;
+  selectedType = null;
   fileInput.value = '';
   resetPreviewURL();
   selection.hidden = true;
@@ -44,27 +64,47 @@ function rejectFile(message) {
   uploadMessage.textContent = message;
 }
 
+function typeForFile(file) {
+  const extension = file.name.split('.').pop().toLowerCase();
+  return FILE_TYPES.get(extension) || null;
+}
+
+function fileSizeLimit(type) {
+  return type.image ? MAX_IMAGE_BYTES : MAX_DOCUMENT_BYTES;
+}
+
 function selectFile(file) {
   uploadMessage.textContent = '';
-  if (!file || !ALLOWED_TYPES.has(file.type)) {
-    rejectFile('请选择 JPEG、PNG、GIF 或 WebP 图片');
+  const type = file && typeForFile(file);
+  if (!type) {
+    rejectFile('请选择支持的图片或文档文件');
     return;
   }
   if (file.size === 0) {
-    rejectFile('图片文件不能为空');
+    rejectFile('文件不能为空');
     return;
   }
-  if (file.size > MAX_IMAGE_BYTES) {
-    rejectFile('图片不能超过 10 MiB');
+  if (file.size > fileSizeLimit(type)) {
+    rejectFile(type.image ? '图片不能超过 10 MiB' : '文档不能超过 50 MiB');
     return;
   }
 
   selectedFile = file;
+  selectedType = type;
   resetPreviewURL();
-  previewURL = URL.createObjectURL(file);
-  preview.src = previewURL;
+  if (type.image) {
+    previewURL = URL.createObjectURL(file);
+    preview.src = previewURL;
+    preview.hidden = false;
+    selectionDocument.hidden = true;
+  } else {
+    preview.removeAttribute('src');
+    preview.hidden = true;
+    selectionDocumentType.textContent = type.label;
+    selectionDocument.hidden = false;
+  }
   fileName.textContent = file.name;
-  fileMeta.textContent = `${file.type.replace('image/', '').toUpperCase()} · ${formatBytes(file.size)}`;
+  fileMeta.textContent = `${type.label} · ${formatBytes(file.size)}`;
   dropZone.hidden = true;
   result.hidden = true;
   selection.hidden = false;
@@ -89,7 +129,7 @@ for (const eventName of ['dragleave', 'drop']) {
 dropZone.addEventListener('drop', (event) => selectFile(event.dataTransfer.files[0]));
 
 uploadButton.addEventListener('click', () => {
-  if (!selectedFile) return;
+  if (!selectedFile || !selectedType) return;
   uploadMessage.textContent = '';
   selection.hidden = true;
   uploadProgress.hidden = false;
@@ -98,7 +138,7 @@ uploadButton.addEventListener('click', () => {
   progressBar.style.width = '0%';
 
   const formData = new FormData();
-  formData.append('image', selectedFile);
+  formData.append('image', new File([selectedFile], selectedFile.name, { type: selectedType.mime }));
   const request = new XMLHttpRequest();
   request.open('POST', '/api/images');
   request.upload.addEventListener('progress', (event) => {
@@ -126,7 +166,16 @@ uploadButton.addEventListener('click', () => {
       return;
     }
     resultURL.value = body.url;
-    resultImage.src = body.url;
+    if (selectedType.image) {
+      resultImage.src = body.url;
+      resultImage.hidden = false;
+      resultDocument.hidden = true;
+    } else {
+      resultImage.removeAttribute('src');
+      resultImage.hidden = true;
+      resultDocumentType.textContent = selectedType.label;
+      resultDocument.hidden = false;
+    }
     result.hidden = false;
     copyMessage.textContent = '';
   });
@@ -154,6 +203,7 @@ copyButton.addEventListener('click', async () => {
 
 uploadAnother.addEventListener('click', () => {
   selectedFile = null;
+  selectedType = null;
   fileInput.value = '';
   resetPreviewURL();
   result.hidden = true;

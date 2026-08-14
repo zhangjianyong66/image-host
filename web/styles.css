@@ -114,6 +114,8 @@ form .primary-button { width: 100%; justify-content: space-between; }
 .selection { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); }
 .preview-frame { min-height: 428px; display: grid; place-items: center; padding: 28px; border-right: 1px solid var(--line); background-color: #edf0ee; background-image: linear-gradient(45deg, #e2e6e3 25%, transparent 25%), linear-gradient(-45deg, #e2e6e3 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e6e3 75%), linear-gradient(-45deg, transparent 75%, #e2e6e3 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0; }
 .preview-frame img { display: block; max-width: 100%; max-height: 370px; object-fit: contain; box-shadow: 0 14px 35px rgba(23, 25, 24, .18); }
+.document-placeholder, .result-document { display: grid; place-items: center; width: min(230px, 100%); aspect-ratio: 1.35; border: 1px solid #aeb5b1; background: #f8f9f8; color: var(--green); font: 700 25px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.document-placeholder span, .result-document span { padding: 10px; border: 1px solid currentColor; }
 .file-details { min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 38px; }
 .file-name { overflow-wrap: anywhere; margin: 0 0 8px; font-size: 18px; font-weight: 750; }
 .file-meta { margin: 0; color: var(--muted); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -129,6 +131,7 @@ form .primary-button { width: 100%; justify-content: space-between; }
 .result-status span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; background: var(--green); }
 .result-body { display: grid; grid-template-columns: 230px 1fr; gap: 34px; align-items: center; padding: 34px 0; }
 .result-body > img { width: 230px; height: 150px; object-fit: contain; border: 1px solid var(--line); background: var(--soft); }
+.result-document { height: 150px; }
 .copy-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
 .copy-row input { min-width: 0; height: 48px; padding: 0 13px; border: 1px solid #aeb5b1; border-right: 0; border-radius: 4px 0 0 4px; color: #343836; background: #f8f9f8; }
 .copy-row .copy-button { border-radius: 0 4px 4px 0; }
@@ -156,6 +159,7 @@ form .primary-button { width: 100%; justify-content: space-between; }
   .result { padding: 24px; }
   .result-body { grid-template-columns: 1fr; gap: 24px; }
   .result-body > img { width: 100%; height: 190px; }
+  .result-document { width: 100%; height: 190px; }
   .copy-row { grid-template-columns: 1fr; gap: 9px; }
   .copy-row input { border-right: 1px solid #aeb5b1; border-radius: 4px; }
   .copy-row .copy-button { border-radius: 4px; }

@@ -1,0 +1,3 @@
+{"file":".trellis/spec/backend/image-host-contract.md","reason":"核对上传格式、公开访问和 ECS2 发布不破坏既有契约。"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"服务端测试与质量检查参考。"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"上传页交互变更的前端质量检查参考。"}

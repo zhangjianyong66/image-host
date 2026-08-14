@@ -1,6 +1,7 @@
 package app
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"io/fs"
@@ -73,6 +74,29 @@ func uploadRequest(t *testing.T, path, field, filename, contentType string, data
 	req := httptest.NewRequest(http.MethodPost, path, &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	return req
+}
+
+func testZIP(t *testing.T, contents map[string]string) []byte {
+	t.Helper()
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	for name, content := range contents {
+		header := &zip.FileHeader{Name: name, Method: zip.Deflate}
+		if name == "mimetype" {
+			header.Method = zip.Store
+		}
+		part, err := writer.CreateHeader(header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write([]byte(content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buffer.Bytes()
 }
 
 func TestAuthenticationFlow(t *testing.T) {
@@ -198,6 +222,92 @@ func TestUploadValidation(t *testing.T) {
 			cookie := performLogin(t, a)
 			request := uploadRequest(t, "/api/images", test.field, "file.bin", test.contentType, test.data)
 			request.AddCookie(cookie)
+			recorder := httptest.NewRecorder()
+			a.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d, body = %s", recorder.Code, test.wantStatus, recorder.Body.String())
+			}
+			entries, err := os.ReadDir(a.config.UploadDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("invalid upload wrote %d files", len(entries))
+			}
+		})
+	}
+}
+
+func TestDocumentUploadAndPublicAccess(t *testing.T) {
+	tests := []struct {
+		name        string
+		filename    string
+		contentType string
+		data        []byte
+		extension   string
+		disposition string
+	}{
+		{name: "pdf", filename: "report.pdf", contentType: "application/pdf", data: []byte("%PDF-1.7\nexample"), extension: ".pdf", disposition: "inline"},
+		{name: "text", filename: "notes.txt", contentType: "text/plain", data: []byte("hello\n"), extension: ".txt", disposition: "inline"},
+		{name: "markdown", filename: "notes.md", contentType: "text/markdown", data: []byte("# hello\n"), extension: ".md", disposition: "inline"},
+		{name: "epub", filename: "book.epub", contentType: "application/epub+zip", data: testZIP(t, map[string]string{"mimetype": "application/epub+zip", "META-INF/container.xml": "<container/>"}), extension: ".epub", disposition: "attachment"},
+		{name: "docx", filename: "report.docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data: testZIP(t, map[string]string{"[Content_Types].xml": "<Types/>", "word/document.xml": "<w:document/>"}), extension: ".docx", disposition: "attachment"},
+		{name: "xlsx", filename: "sheet.xlsx", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data: testZIP(t, map[string]string{"[Content_Types].xml": "<Types/>", "xl/workbook.xml": "<workbook/>"}), extension: ".xlsx", disposition: "attachment"},
+		{name: "pptx", filename: "slides.pptx", contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", data: testZIP(t, map[string]string{"[Content_Types].xml": "<Types/>", "ppt/presentation.xml": "<p:presentation/>"}), extension: ".pptx", disposition: "attachment"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			a := newTestApp(t)
+			request := uploadRequest(t, "/api/images", "image", test.filename, test.contentType, test.data)
+			request.AddCookie(performLogin(t, a))
+			recorder := httptest.NewRecorder()
+			a.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusCreated {
+				t.Fatalf("upload status = %d, body = %s", recorder.Code, recorder.Body.String())
+			}
+			var response map[string]string
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatal(err)
+			}
+			name := strings.TrimPrefix(response["url"], "https://image.example.test/images/")
+			if !strings.HasSuffix(name, test.extension) || !storedNamePattern.MatchString(name) {
+				t.Fatalf("stored name = %q", name)
+			}
+
+			recorder = httptest.NewRecorder()
+			a.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/images/"+name, nil))
+			if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != test.contentType {
+				t.Fatalf("public file = %d %q", recorder.Code, recorder.Header().Get("Content-Type"))
+			}
+			if !strings.HasPrefix(recorder.Header().Get("Content-Disposition"), test.disposition) {
+				t.Fatalf("content disposition = %q", recorder.Header().Get("Content-Disposition"))
+			}
+			if !bytes.Equal(recorder.Body.Bytes(), test.data) {
+				t.Fatal("public file bytes differ")
+			}
+		})
+	}
+}
+
+func TestDocumentUploadValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		contentType string
+		data        []byte
+		wantStatus  int
+	}{
+		{name: "invalid PDF", contentType: "application/pdf", data: []byte("not a PDF"), wantStatus: http.StatusUnsupportedMediaType},
+		{name: "invalid UTF-8", contentType: "text/plain", data: []byte{0xff}, wantStatus: http.StatusUnsupportedMediaType},
+		{name: "wrong Office container", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data: testZIP(t, map[string]string{"[Content_Types].xml": "<Types/>", "xl/workbook.xml": "<workbook/>"}), wantStatus: http.StatusUnsupportedMediaType},
+		{name: "unsupported legacy Office", contentType: "application/msword", data: []byte("legacy"), wantStatus: http.StatusUnsupportedMediaType},
+		{name: "document too large", contentType: "application/pdf", data: append([]byte("%PDF-1.7"), make([]byte, maxDocumentBytes)...), wantStatus: http.StatusRequestEntityTooLarge},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			a := newTestApp(t)
+			request := uploadRequest(t, "/api/images", "image", "file.bin", test.contentType, test.data)
+			request.AddCookie(performLogin(t, a))
 			recorder := httptest.NewRecorder()
 			a.Handler().ServeHTTP(recorder, request)
 			if recorder.Code != test.wantStatus {
