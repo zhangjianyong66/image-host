@@ -1,51 +1,17 @@
-# Type Safety
+# Frontend Type Safety
 
-> Type safety patterns in this project.
+## Current State
 
----
+Browser code is plain JavaScript; there is no TypeScript, generated API client,
+or runtime schema library. Keep browser-side values defensive at the API
+boundary. Both page scripts parse server responses cautiously and fall back to
+an empty object when JSON parsing fails.
 
-## Overview
+Validate user-facing file name, extension, and size early for feedback, but do
+not treat that validation as a security boundary. The Go server owns MIME and
+content validation. Keep frontend constants synchronized with the backend
+contract: `web/upload.js` explicitly maps accepted extensions to request MIME
+types and applies the image/document limits.
 
-<!--
-Document your project's type safety conventions here.
-
-Questions to answer:
-- What type system do you use?
-- How are types organized?
-- What validation library do you use?
-- How do you handle type inference?
--->
-
-(To be filled by the team)
-
----
-
-## Type Organization
-
-<!-- Where types are defined, shared types vs local types -->
-
-(To be filled by the team)
-
----
-
-## Validation
-
-<!-- Runtime validation patterns (Zod, Yup, io-ts, etc.) -->
-
-(To be filled by the team)
-
----
-
-## Common Patterns
-
-<!-- Type utilities, generics, type guards -->
-
-(To be filled by the team)
-
----
-
-## Forbidden Patterns
-
-<!-- any, type assertions, etc. -->
-
-(To be filled by the team)
+Avoid unchecked assumptions about response fields. Read `body.error` only as an
+optional fallback message and use the server response URL only after a `201`.

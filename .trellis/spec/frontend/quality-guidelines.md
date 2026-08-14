@@ -1,51 +1,26 @@
-# Quality Guidelines
+# Frontend Quality Guidelines
 
-> Code quality standards for frontend development.
+## Current Checks
 
----
+The repository has no frontend package manager, bundler, linter, or browser test
+suite. At minimum, syntax-check changed scripts with Node when available:
 
-## Overview
+```bash
+node --check web/login.js
+node --check web/upload.js
+```
 
-<!--
-Document your project's quality standards here.
+For behavior changes, manually verify the matching page in a browser: empty and
+invalid form input, request failure, successful action, keyboard focus, and
+mobile-size layout. Upload changes must be checked against the server contract
+for both an allowed image and an allowed document.
 
-Questions to answer:
-- What patterns are forbidden?
-- What linting rules do you enforce?
-- What are your testing requirements?
-- What code review standards apply?
--->
+## Review Rules
 
-(To be filled by the team)
-
----
-
-## Forbidden Patterns
-
-<!-- Patterns that should never be used and why -->
-
-(To be filled by the team)
-
----
-
-## Required Patterns
-
-<!-- Patterns that must always be used -->
-
-(To be filled by the team)
-
----
-
-## Testing Requirements
-
-<!-- What level of testing is expected -->
-
-(To be filled by the team)
-
----
-
-## Code Review Checklist
-
-<!-- What reviewers should check -->
-
-(To be filled by the team)
+- Keep user-visible messages in Chinese, matching the existing interface.
+- Preserve the disabled/loading state around asynchronous actions.
+- Reset stale previews with `URL.revokeObjectURL`.
+- Use `textContent` for dynamic messages rather than inserting response data as
+  HTML.
+- Preserve authentication redirects on `401` and the stable `/api/images` form
+  field name (`image`).

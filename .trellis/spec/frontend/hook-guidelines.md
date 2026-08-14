@@ -1,51 +1,16 @@
-# Hook Guidelines
+# Frontend Hook Guidelines
 
-> How hooks are used in this project.
+## Current State
 
----
+The frontend has no React, custom hooks, or client-side data-fetching library.
+Stateful behavior is implemented with module-level variables and DOM event
+listeners in the page script.
 
-## Overview
+For a small behavior addition, follow `web/upload.js`: keep private state near
+the DOM references, use named functions for reusable transitions such as
+`resetPreviewURL` and `rejectFile`, and register listeners once during script
+evaluation. Use `fetch` for simple JSON requests and `XMLHttpRequest` only where
+upload progress is needed.
 
-<!--
-Document your project's hook conventions here.
-
-Questions to answer:
-- What custom hooks do you have?
-- How do you handle data fetching?
-- What are the naming conventions?
-- How do you share stateful logic?
--->
-
-(To be filled by the team)
-
----
-
-## Custom Hook Patterns
-
-<!-- How to create and structure custom hooks -->
-
-(To be filled by the team)
-
----
-
-## Data Fetching
-
-<!-- How data fetching is handled (React Query, SWR, etc.) -->
-
-(To be filled by the team)
-
----
-
-## Naming Conventions
-
-<!-- Hook naming rules (use*, etc.) -->
-
-(To be filled by the team)
-
----
-
-## Common Mistakes
-
-<!-- Hook-related mistakes your team has made -->
-
-(To be filled by the team)
+Do not add a hook abstraction or state library without an approved frontend
+architecture change.

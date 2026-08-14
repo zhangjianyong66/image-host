@@ -1,51 +1,23 @@
-# Logging Guidelines
+# Backend Logging Guidelines
 
-> How logging is done in this project.
+## Current Pattern
 
----
+The service uses the standard-library `log/slog` package. `cmd/image-host/main.go`
+creates a text handler writing to stderr and passes the logger to `app.New`.
+Tests may pass `nil`; `New` then installs a discard logger.
 
-## Overview
+Use structured key/value fields rather than string formatting for operational
+data:
 
-<!--
-Document your project's logging conventions here.
+```go
+logger.Info("image host started", "address", cfg.ListenAddr, "upload_dir", cfg.UploadDir)
+logger.Error("graceful shutdown failed", "error", err)
+```
 
-Questions to answer:
-- What logging library do you use?
-- What are the log levels and when to use each?
-- What should be logged?
-- What should NOT be logged (PII, secrets)?
--->
+Use `Info` for lifecycle events, `Error` for failed startup, shutdown, and
+unexpected server failures. The current codebase does not use custom levels or
+a request-logging middleware; do not add either without a concrete operational
+need.
 
-(To be filled by the team)
-
----
-
-## Log Levels
-
-<!-- When to use each level: debug, info, warn, error -->
-
-(To be filled by the team)
-
----
-
-## Structured Logging
-
-<!-- Log format, required fields -->
-
-(To be filled by the team)
-
----
-
-## What to Log
-
-<!-- Important events to log -->
-
-(To be filled by the team)
-
----
-
-## What NOT to Log
-
-<!-- Sensitive data, PII, secrets -->
-
-(To be filled by the team)
+Never log upload passwords, session secrets, raw cookie values, or full uploaded
+content. Log errors and non-sensitive operational identifiers only.

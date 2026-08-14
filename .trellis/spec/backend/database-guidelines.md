@@ -1,51 +1,14 @@
 # Database Guidelines
 
-> Database patterns and conventions for this project.
+## Current State
 
----
+The application has no database, ORM, migrations, or query layer. Authentication
+uses a password from environment configuration and an HMAC-signed cookie; uploads
+are persisted as files under `UPLOAD_DIR`.
 
-## Overview
+Do not introduce a database abstraction, migration tooling, or persistence model
+for changes that fit the current local-file contract. Filename generation and
+exclusive file creation in `internal/app/upload.go` are the persistence boundary.
 
-<!--
-Document your project's database conventions here.
-
-Questions to answer:
-- What ORM/query library do you use?
-- How are migrations managed?
-- What are the naming conventions for tables/columns?
-- How do you handle transactions?
--->
-
-(To be filled by the team)
-
----
-
-## Query Patterns
-
-<!-- How should queries be written? Batch operations? -->
-
-(To be filled by the team)
-
----
-
-## Migrations
-
-<!-- How to create and run migrations -->
-
-(To be filled by the team)
-
----
-
-## Naming Conventions
-
-<!-- Table names, column names, index names -->
-
-(To be filled by the team)
-
----
-
-## Common Mistakes
-
-<!-- Database-related mistakes your team has made -->
-
-(To be filled by the team)
+If durable metadata or querying becomes a product requirement, design the storage
+model and migration/backup story as a separate task before adding a dependency.

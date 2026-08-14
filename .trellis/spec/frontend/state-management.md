@@ -1,51 +1,16 @@
-# State Management
+# Frontend State Management
 
-> How state is managed in this project.
+## Current Pattern
 
----
+State is local to each page script. `web/upload.js` keeps the selected file,
+its derived type, and an object URL in module variables, while visibility and
+messages are rendered directly into the DOM. `web/login.js` reads the password
+field on submit and disables the submit button while the request is pending.
 
-## Overview
+Server interaction is request-driven: login uses `fetch`; upload uses
+`XMLHttpRequest` to expose progress. No server cache, global store, URL state,
+or persistence layer exists.
 
-<!--
-Document your project's state management conventions here.
-
-Questions to answer:
-- What state management solution do you use?
-- How is local vs global state decided?
-- How do you handle server state?
-- What are the patterns for derived state?
--->
-
-(To be filled by the team)
-
----
-
-## State Categories
-
-<!-- Local state, global state, server state, URL state -->
-
-(To be filled by the team)
-
----
-
-## When to Use Global State
-
-<!-- Criteria for promoting state to global -->
-
-(To be filled by the team)
-
----
-
-## Server State
-
-<!-- How server data is cached and synchronized -->
-
-(To be filled by the team)
-
----
-
-## Common Mistakes
-
-<!-- State management mistakes your team has made -->
-
-(To be filled by the team)
+Keep only source state in variables and derive display details from it. Clean up
+object URLs with `URL.revokeObjectURL` when replacing or clearing a preview.
+Do not add global state for values used by one page.

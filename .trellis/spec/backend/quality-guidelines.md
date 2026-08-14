@@ -1,51 +1,34 @@
-# Quality Guidelines
+# Backend Quality Guidelines
 
-> Code quality standards for backend development.
+## Required Checks
 
----
+Run `gofmt` on changed Go files, then run:
 
-## Overview
+```bash
+go test ./...
+go vet ./...
+```
 
-<!--
-Document your project's quality standards here.
+For upload, authentication, or concurrency-sensitive changes, also run
+`go test -race ./...`. The deployment contract additionally requires a static
+Linux amd64 build before release.
 
-Questions to answer:
-- What patterns are forbidden?
-- What linting rules do you enforce?
-- What are your testing requirements?
-- What code review standards apply?
--->
+## Test Pattern
 
-(To be filled by the team)
+Use `httptest.NewRequest` and `httptest.NewRecorder` against `a.Handler()`.
+Create an isolated app with `newTestApp(t)`, which supplies `t.TempDir()` and a
+fixed clock. Build multipart fixtures through `uploadRequest`; keep malformed
+and spoofed payload cases beside successful uploads in `app_test.go`.
 
----
+## Review Rules
 
-## Forbidden Patterns
-
-<!-- Patterns that should never be used and why -->
-
-(To be filled by the team)
-
----
-
-## Required Patterns
-
-<!-- Patterns that must always be used -->
-
-(To be filled by the team)
-
----
-
-## Testing Requirements
-
-<!-- What level of testing is expected -->
-
-(To be filled by the team)
-
----
-
-## Code Review Checklist
-
-<!-- What reviewers should check -->
-
-(To be filled by the team)
+- Maintain the public API, cookie, storage, and validation contract in
+  `image-host-contract.md`.
+- Treat filenames and MIME declarations as untrusted; derive the stored name
+  from validated content and use exclusive creation.
+- Bound body/file sizes before persistence and verify rejected uploads leave no
+  files behind.
+- Keep the standard-library-only dependency model unless a requirement demands
+  an external library.
+- Check shutdown behavior and error logging whenever server lifecycle code
+  changes.

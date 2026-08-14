@@ -1,54 +1,22 @@
-# Directory Structure
+# Frontend Directory Structure
 
-> How frontend code is organized in this project.
+## Current Layout
 
----
-
-## Overview
-
-<!--
-Document your project's frontend directory structure here.
-
-Questions to answer:
-- Where do components live?
-- How are features/modules organized?
-- Where are shared utilities?
-- How are assets organized?
--->
-
-(To be filled by the team)
-
----
-
-## Directory Layout
+The frontend is a small, framework-free browser client embedded into the Go
+binary:
 
 ```
-<!-- Replace with your actual structure -->
-src/
-├── ...
-└── ...
+web/login.html       Login page markup
+web/login.js         Login-page behavior
+web/upload.html      Upload page markup
+web/upload.js        Upload-page behavior
+web/styles.css       Shared page styling
+web/embed.go         go:embed declaration
 ```
 
----
+Page-specific markup and behavior stay paired by basename. Shared visual styles
+belong in `web/styles.css`. `web/embed.go` must include every asset required by
+the Go `embed.FS` handler.
 
-## Module Organization
-
-<!-- How should new features be organized? -->
-
-(To be filled by the team)
-
----
-
-## Naming Conventions
-
-<!-- File and folder naming rules -->
-
-(To be filled by the team)
-
----
-
-## Examples
-
-<!-- Link to well-organized modules as examples -->
-
-(To be filled by the team)
+Do not create a `src/`, component, hook, or build-tool structure for a focused
+page change; no such framework exists in this project.

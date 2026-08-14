@@ -1,59 +1,23 @@
-# Component Guidelines
+# Frontend Component Guidelines
 
-> How components are built in this project.
+## Current Pattern
 
----
+The project does not use a component framework. HTML documents are the UI
+structure and their paired JavaScript files attach behavior by querying stable
+element IDs. For example, `web/upload.js` collects its page elements at module
+scope with `document.querySelector('#file-input')` and updates `hidden`, text,
+and form control properties in response to events.
 
-## Overview
+When extending a page:
 
-<!--
-Document your project's component conventions here.
+- Add semantic HTML with a unique, descriptive ID for elements JavaScript owns.
+- Keep page behavior in the matching `.js` file and shared presentation in
+  `styles.css`.
+- Use native controls (`button`, `input`, `form`, labels) instead of clickable
+  generic elements.
+- Preserve existing `hidden`-based state transitions rather than duplicating
+  page markup.
+- Include accessible labels and keep focus behavior deliberate after validation,
+  copy, and navigation actions.
 
-Questions to answer:
-- What component patterns do you use?
-- How are props defined?
-- How do you handle composition?
-- What accessibility standards apply?
--->
-
-(To be filled by the team)
-
----
-
-## Component Structure
-
-<!-- Standard structure of a component file -->
-
-(To be filled by the team)
-
----
-
-## Props Conventions
-
-<!-- How props should be defined and typed -->
-
-(To be filled by the team)
-
----
-
-## Styling Patterns
-
-<!-- How styles are applied (CSS modules, styled-components, Tailwind, etc.) -->
-
-(To be filled by the team)
-
----
-
-## Accessibility
-
-<!-- A11y requirements and patterns -->
-
-(To be filled by the team)
-
----
-
-## Common Mistakes
-
-<!-- Component-related mistakes your team has made -->
-
-(To be filled by the team)
+There are no props, component composition, or CSS modules in the current code.
