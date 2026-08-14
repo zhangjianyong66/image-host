@@ -70,3 +70,24 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 3: 补全项目开发规范
+
+**Date**: 2026-08-14
+**Task**: 补全项目开发规范
+**Branch**: `main`
+
+### Summary
+
+基于现有 Go 服务和原生前端实现，补全后端与前端 Trellis 开发规范，记录目录、错误处理、日志、测试、状态管理与类型边界。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `94eb28d` | (see git log) |
+
+### Status
+
+[OK] **Completed**
