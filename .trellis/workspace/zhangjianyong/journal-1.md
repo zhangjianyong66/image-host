@@ -38,3 +38,35 @@
 ### Next Steps
 
 - 项目根目录不是 Git 仓库，本次没有代码提交；需要时初始化或关联现有仓库后提交
+
+
+## Session 2: 支持文档文件上传并部署 ECS2
+
+**Date**: 2026-08-14
+**Task**: 支持文档文件上传并部署 ECS2
+**Branch**: `main`
+
+### Summary
+
+实现安全的文档上传、公开访问策略和 50 MiB 反向代理限制，并已部署到 ECS2。
+
+### Main Changes
+
+- 新增 PDF、EPUB、TXT、MD、DOCX、XLSX、PPTX 上传及服务端内容校验。
+- 图片保留预览，文档使用文件信息与公开链接；更新部署模板和上传契约。
+- 发布 ECS2 新版本并将 Nginx 请求体上限调整为 51 MiB。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b355327` | (see git log) |
+
+### Testing
+
+- [OK] go test -race ./...、go vet ./...、静态 Linux amd64 构建、Node 语法检查。
+- [OK] 线上 HTTPS 登录、PDF 上传与公开访问、既有 PNG 公开访问均通过。
+
+### Status
+
+[OK] **Completed**
