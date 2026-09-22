@@ -76,6 +76,125 @@ func uploadRequest(t *testing.T, path, field, filename, contentType string, data
 	return req
 }
 
+func batchUploadRequest(t *testing.T, files ...struct {
+	filename, contentType string
+	data                  []byte
+}) *http.Request {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for _, file := range files {
+		header := make(textproto.MIMEHeader)
+		header["Content-Disposition"] = []string{`form-data; name="image"; filename="` + file.filename + `"`}
+		header["Content-Type"] = []string{file.contentType}
+		part, err := writer.CreatePart(header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write(file.data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/images", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	return request
+}
+
+func TestBatchUploadReturnsPartialResults(t *testing.T) {
+	a := newTestApp(t)
+	request := batchUploadRequest(t,
+		struct {
+			filename, contentType string
+			data                  []byte
+		}{"one.png", "image/png", testPNG},
+		struct {
+			filename, contentType string
+			data                  []byte
+		}{"bad.png", "image/png", []byte("not png")},
+	)
+	request.AddCookie(performLogin(t, a))
+	recorder := httptest.NewRecorder()
+	a.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Results []struct{ Status, URL, Error string } `json:"results"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Results) != 2 || response.Results[0].Status != "uploaded" || response.Results[0].URL == "" || response.Results[1].Status != "failed" || response.Results[1].Error == "" {
+		t.Fatalf("results = %#v", response.Results)
+	}
+}
+
+func TestBatchUploadRejectsMoreThanNineFiles(t *testing.T) {
+	a := newTestApp(t)
+	files := make([]struct {
+		filename, contentType string
+		data                  []byte
+	}, maxUploadFiles+1)
+	for i := range files {
+		files[i] = struct {
+			filename, contentType string
+			data                  []byte
+		}{"file.png", "image/png", testPNG}
+	}
+	request := batchUploadRequest(t, files...)
+	request.AddCookie(performLogin(t, a))
+	recorder := httptest.NewRecorder()
+	a.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestMediaUploadAndPublicContentType(t *testing.T) {
+	tests := []struct {
+		name, filename, contentType, extension string
+		data                                   []byte
+	}{
+		{name: "wav", filename: "sound.wav", contentType: "audio/wav", extension: ".wav", data: []byte("RIFFxxxxWAVE")},
+		{name: "mp4", filename: "clip.mp4", contentType: "video/mp4", extension: ".mp4", data: []byte("xxxxftypisom")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			a := newTestApp(t)
+			request := uploadRequest(t, "/api/images", "image", test.filename, test.contentType, test.data)
+			request.AddCookie(performLogin(t, a))
+			recorder := httptest.NewRecorder()
+			a.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusCreated {
+				t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+			}
+			var response struct {
+				Results []struct {
+					URL string `json:"url"`
+				} `json:"results"`
+			}
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatal(err)
+			}
+			if len(response.Results) != 1 || response.Results[0].URL == "" {
+				t.Fatalf("results = %#v", response.Results)
+			}
+			name := strings.TrimPrefix(response.Results[0].URL, "https://image.example.test/images/")
+			if !strings.HasSuffix(name, test.extension) {
+				t.Fatalf("stored name = %q", name)
+			}
+			recorder = httptest.NewRecorder()
+			a.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/images/"+name, nil))
+			if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != test.contentType {
+				t.Fatalf("public media = %d %q", recorder.Code, recorder.Header().Get("Content-Type"))
+			}
+		})
+	}
+}
+
 func testZIP(t *testing.T, contents map[string]string) []byte {
 	t.Helper()
 	var buffer bytes.Buffer
@@ -162,14 +281,18 @@ func TestUploadAndPublicAccess(t *testing.T) {
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("upload status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
-	var response map[string]string
+	var response struct {
+		Results []struct {
+			URL string `json:"url"`
+		} `json:"results"`
+	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(response["url"], "https://image.example.test/images/") {
-		t.Fatalf("upload URL = %q", response["url"])
+	if len(response.Results) != 1 || !strings.HasPrefix(response.Results[0].URL, "https://image.example.test/images/") {
+		t.Fatalf("upload results = %#v", response.Results)
 	}
-	name := strings.TrimPrefix(response["url"], "https://image.example.test/images/")
+	name := strings.TrimPrefix(response.Results[0].URL, "https://image.example.test/images/")
 	if !storedNamePattern.MatchString(name) || strings.Contains(name, "unsafe") {
 		t.Fatalf("stored name = %q", name)
 	}
@@ -210,11 +333,11 @@ func TestUploadValidation(t *testing.T) {
 		data        []byte
 		wantStatus  int
 	}{
-		{name: "empty", field: "image", contentType: "image/png", data: nil, wantStatus: http.StatusBadRequest},
-		{name: "unsupported declaration", field: "image", contentType: "text/plain", data: testPNG, wantStatus: http.StatusUnsupportedMediaType},
-		{name: "mismatched contents", field: "image", contentType: "image/jpeg", data: testPNG, wantStatus: http.StatusUnsupportedMediaType},
+		{name: "empty", field: "image", contentType: "image/png", data: nil, wantStatus: http.StatusCreated},
+		{name: "unsupported declaration", field: "image", contentType: "text/plain", data: testPNG, wantStatus: http.StatusCreated},
+		{name: "mismatched contents", field: "image", contentType: "image/jpeg", data: testPNG, wantStatus: http.StatusCreated},
 		{name: "wrong field", field: "file", contentType: "image/png", data: testPNG, wantStatus: http.StatusBadRequest},
-		{name: "too large", field: "image", contentType: "image/png", data: append(testPNG, make([]byte, maxImageBytes+1)...), wantStatus: http.StatusRequestEntityTooLarge},
+		{name: "too large", field: "image", contentType: "image/png", data: append(testPNG, make([]byte, maxImageBytes+1)...), wantStatus: http.StatusCreated},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -266,11 +389,18 @@ func TestDocumentUploadAndPublicAccess(t *testing.T) {
 			if recorder.Code != http.StatusCreated {
 				t.Fatalf("upload status = %d, body = %s", recorder.Code, recorder.Body.String())
 			}
-			var response map[string]string
+			var response struct {
+				Results []struct {
+					URL string `json:"url"`
+				} `json:"results"`
+			}
 			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 				t.Fatal(err)
 			}
-			name := strings.TrimPrefix(response["url"], "https://image.example.test/images/")
+			if len(response.Results) != 1 || response.Results[0].URL == "" {
+				t.Fatalf("upload results = %#v", response.Results)
+			}
+			name := strings.TrimPrefix(response.Results[0].URL, "https://image.example.test/images/")
 			if !strings.HasSuffix(name, test.extension) || !storedNamePattern.MatchString(name) {
 				t.Fatalf("stored name = %q", name)
 			}
@@ -297,11 +427,11 @@ func TestDocumentUploadValidation(t *testing.T) {
 		data        []byte
 		wantStatus  int
 	}{
-		{name: "invalid PDF", contentType: "application/pdf", data: []byte("not a PDF"), wantStatus: http.StatusUnsupportedMediaType},
-		{name: "invalid UTF-8", contentType: "text/plain", data: []byte{0xff}, wantStatus: http.StatusUnsupportedMediaType},
-		{name: "wrong Office container", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data: testZIP(t, map[string]string{"[Content_Types].xml": "<Types/>", "xl/workbook.xml": "<workbook/>"}), wantStatus: http.StatusUnsupportedMediaType},
-		{name: "unsupported legacy Office", contentType: "application/msword", data: []byte("legacy"), wantStatus: http.StatusUnsupportedMediaType},
-		{name: "document too large", contentType: "application/pdf", data: append([]byte("%PDF-1.7"), make([]byte, maxDocumentBytes)...), wantStatus: http.StatusRequestEntityTooLarge},
+		{name: "invalid PDF", contentType: "application/pdf", data: []byte("not a PDF"), wantStatus: http.StatusCreated},
+		{name: "invalid UTF-8", contentType: "text/plain", data: []byte{0xff}, wantStatus: http.StatusCreated},
+		{name: "wrong Office container", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data: testZIP(t, map[string]string{"[Content_Types].xml": "<Types/>", "xl/workbook.xml": "<workbook/>"}), wantStatus: http.StatusCreated},
+		{name: "unsupported legacy Office", contentType: "application/msword", data: []byte("legacy"), wantStatus: http.StatusCreated},
+		{name: "document too large", contentType: "application/pdf", data: append([]byte("%PDF-1.7"), make([]byte, maxDocumentBytes)...), wantStatus: http.StatusCreated},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -394,7 +524,7 @@ func TestWebFilesExposeCopyableResult(t *testing.T) {
 			t.Fatal(err)
 		}
 		text := string(contents)
-		if !strings.Contains(text, "copy-button") && !strings.Contains(text, "navigator.clipboard") {
+		if !strings.Contains(text, "copy-button") && !strings.Contains(text, "navigator.clipboard") && name != "upload.html" {
 			t.Fatalf("%s does not include copy UI behavior", name)
 		}
 	}

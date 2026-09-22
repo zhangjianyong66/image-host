@@ -120,6 +120,10 @@ form .primary-button { width: 100%; justify-content: space-between; }
 .file-name { overflow-wrap: anywhere; margin: 0 0 8px; font-size: 18px; font-weight: 750; }
 .file-meta { margin: 0; color: var(--muted); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .selection-actions { display: grid; gap: 10px; margin-top: 34px; }
+.file-list { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); align-content: center; gap: 14px; }
+.selected-file { min-width: 0; display: grid; gap: 8px; justify-items: center; color: var(--muted); font-size: 12px; text-align: center; }
+.selected-file img { width: 120px; height: 96px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
+.file-type-badge { display: grid; place-items: center; width: 120px; height: 96px; border: 1px solid var(--line); color: var(--green); background: #f8f9f8; font: 700 18px ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 .upload-progress { width: min(520px, 100%); margin: 150px auto 0; }
 .progress-copy { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 14px; font-weight: 700; }
@@ -129,6 +133,12 @@ form .primary-button { width: 100%; justify-content: space-between; }
 .result { padding: 36px; }
 .result-status { display: flex; align-items: center; gap: 10px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
 .result-status span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; background: var(--green); }
+.result-list { display: grid; gap: 12px; padding: 24px 0; }
+.result-item { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); background: #fafcfb; }
+.result-item.is-failure { border-color: #d9aaa0; }
+.result-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.result-link input { min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #aeb5b1; border-right: 0; border-radius: 4px 0 0 4px; background: #fff; }
+.result-link .copy-button { border-radius: 0 4px 4px 0; }
 .result-body { display: grid; grid-template-columns: 230px 1fr; gap: 34px; align-items: center; padding: 34px 0; }
 .result-body > img { width: 230px; height: 150px; object-fit: contain; border: 1px solid var(--line); background: var(--soft); }
 .result-document { height: 150px; }

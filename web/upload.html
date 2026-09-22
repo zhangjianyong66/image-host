@@ -25,27 +25,24 @@
         <p class="section-label">NEW FILE</p>
         <h1>上传文件</h1>
       </div>
-      <p>图片最大 10 MiB，文档最大 50 MiB</p>
+      <p>最多 9 个文件；图片 10 MiB，音频 50 MiB，视频 200 MiB</p>
     </section>
 
     <section class="upload-stage" aria-labelledby="drop-title">
-      <input id="file-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,application/epub+zip,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation,.md,.epub,.docx,.xlsx,.pptx" hidden>
+      <input id="file-input" type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/wav,audio/ogg,audio/mp4,video/mp4,video/webm,video/quicktime,application/pdf,application/epub+zip,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation,.md,.epub,.docx,.xlsx,.pptx,.mp3,.wav,.ogg,.m4a,.mp4,.webm,.mov" hidden>
       <button class="drop-zone" id="drop-zone" type="button">
         <span class="upload-symbol" aria-hidden="true">↑</span>
         <span class="drop-title" id="drop-title">拖放文件到这里</span>
         <span class="drop-subtitle">或点击选择文件</span>
         <span class="format-line compact" aria-hidden="true">
-          <span>JPEG</span><span>PNG</span><span>GIF</span><span>WEBP</span><span>PDF</span><span>EPUB</span><span>TXT</span><span>MD</span><span>DOCX</span><span>XLSX</span><span>PPTX</span>
+          <span>JPEG</span><span>PNG</span><span>GIF</span><span>WEBP</span><span>MP3</span><span>WAV</span><span>MP4</span><span>WEBM</span><span>PDF</span><span>DOCX</span>
         </span>
       </button>
 
       <div class="selection" id="selection" hidden>
-        <div class="preview-frame">
-          <img id="preview" alt="待上传图片预览">
-          <div class="document-placeholder" id="selection-document" hidden aria-hidden="true"><span id="selection-document-type"></span></div>
-        </div>
+        <div class="preview-frame file-list" id="file-list"></div>
         <div class="file-details">
-          <p class="file-name" id="file-name"></p>
+          <p class="file-name" id="file-name">已选择 0 个文件</p>
           <p class="file-meta" id="file-meta"></p>
           <div class="selection-actions">
             <button class="primary-button" id="upload-button" type="button">开始上传</button>
@@ -60,19 +57,8 @@
       </div>
 
       <div class="result" id="result" hidden aria-live="polite">
-        <div class="result-status"><span aria-hidden="true">✓</span><strong>上传完成</strong></div>
-        <div class="result-body">
-          <img id="result-image" alt="已上传图片">
-          <div class="result-document" id="result-document" hidden aria-hidden="true"><span id="result-document-type"></span></div>
-          <div class="result-link-block">
-            <label for="result-url">公开链接</label>
-            <div class="copy-row">
-              <input id="result-url" type="text" readonly>
-              <button class="primary-button copy-button" id="copy-button" type="button">复制链接</button>
-            </div>
-            <p class="form-message success" id="copy-message" role="status"></p>
-          </div>
-        </div>
+        <div class="result-status"><span aria-hidden="true">✓</span><strong id="result-title">上传结果</strong></div>
+        <div class="result-list" id="result-list"></div>
         <button class="quiet-button" id="upload-another" type="button">继续上传</button>
       </div>
 

@@ -22,7 +22,10 @@ import (
 const (
 	maxImageBytes       = 10 << 20
 	maxDocumentBytes    = 50 << 20
-	maxRequestBytes     = maxDocumentBytes + (1 << 20)
+	maxAudioBytes       = 50 << 20
+	maxVideoBytes       = 200 << 20
+	maxUploadFiles      = 9
+	maxRequestBytes     = maxUploadFiles*maxVideoBytes + (2 << 20)
 	maxZIPEntries       = 10_000
 	maxZIPMetadataBytes = 1 << 20
 )
@@ -37,10 +40,17 @@ type uploadType struct {
 
 var (
 	allowedUploadTypes = map[string]uploadType{
-		"image/jpeg": {mime: "image/jpeg", extension: ".jpg", maxBytes: maxImageBytes, image: true},
-		"image/png":  {mime: "image/png", extension: ".png", maxBytes: maxImageBytes, image: true},
-		"image/gif":  {mime: "image/gif", extension: ".gif", maxBytes: maxImageBytes, image: true},
-		"image/webp": {mime: "image/webp", extension: ".webp", maxBytes: maxImageBytes, image: true},
+		"image/jpeg":      {mime: "image/jpeg", extension: ".jpg", maxBytes: maxImageBytes, image: true},
+		"image/png":       {mime: "image/png", extension: ".png", maxBytes: maxImageBytes, image: true},
+		"image/gif":       {mime: "image/gif", extension: ".gif", maxBytes: maxImageBytes, image: true},
+		"image/webp":      {mime: "image/webp", extension: ".webp", maxBytes: maxImageBytes, image: true},
+		"audio/mpeg":      {mime: "audio/mpeg", extension: ".mp3", maxBytes: maxAudioBytes},
+		"audio/wav":       {mime: "audio/wav", extension: ".wav", maxBytes: maxAudioBytes},
+		"audio/ogg":       {mime: "audio/ogg", extension: ".ogg", maxBytes: maxAudioBytes},
+		"audio/mp4":       {mime: "audio/mp4", extension: ".m4a", maxBytes: maxAudioBytes},
+		"video/mp4":       {mime: "video/mp4", extension: ".mp4", maxBytes: maxVideoBytes},
+		"video/webm":      {mime: "video/webm", extension: ".webm", maxBytes: maxVideoBytes},
+		"video/quicktime": {mime: "video/quicktime", extension: ".mov", maxBytes: maxVideoBytes},
 
 		"application/pdf":      {mime: "application/pdf", extension: ".pdf", maxBytes: maxDocumentBytes, disposition: "inline"},
 		"application/epub+zip": {mime: "application/epub+zip", extension: ".epub", maxBytes: maxDocumentBytes, disposition: "attachment"},
@@ -56,7 +66,7 @@ var (
 			mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation", extension: ".pptx", maxBytes: maxDocumentBytes, disposition: "attachment",
 		},
 	}
-	storedNamePattern  = regexp.MustCompile(`^[0-9a-f]{32}\.(?:jpg|png|gif|webp|pdf|epub|txt|md|docx|xlsx|pptx)$`)
+	storedNamePattern  = regexp.MustCompile(`^[0-9a-f]{32}\.(?:jpg|png|gif|webp|mp3|wav|ogg|m4a|mp4|webm|mov|pdf|epub|txt|md|docx|xlsx|pptx)$`)
 	errUnsupportedFile = errors.New("unsupported file")
 )
 
@@ -76,89 +86,99 @@ func (a *App) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, fileType, err := readSingleUpload(reader)
-	if err != nil {
-		var maxErr *http.MaxBytesError
-		var sizeErr *fileTooLargeError
-		switch {
-		case errors.As(err, &maxErr):
-			writeError(w, http.StatusRequestEntityTooLarge, "文件不能超过 50 MiB")
-		case errors.As(err, &sizeErr):
-			writeError(w, http.StatusRequestEntityTooLarge, "文件不能超过 "+sizeLabel(sizeErr.maxBytes))
-		case errors.Is(err, errUnsupportedFile):
-			writeError(w, http.StatusUnsupportedMediaType, "只支持 JPEG、PNG、GIF、WebP、PDF、EPUB、TXT、MD、DOCX、XLSX 和 PPTX 文件")
-		default:
-			writeError(w, http.StatusBadRequest, err.Error())
-		}
-		return
+	type result struct {
+		Filename string `json:"filename"`
+		Status   string `json:"status"`
+		URL      string `json:"url,omitempty"`
+		Error    string `json:"error,omitempty"`
 	}
-
-	if !fileType.matches(data) {
-		writeError(w, http.StatusUnsupportedMediaType, "文件内容与声明的类型不一致")
-		return
-	}
-
-	name, err := a.persistImage(data, fileType.extension)
-	if err != nil {
-		a.logger.Error("persist uploaded file", "error", err)
-		writeError(w, http.StatusInternalServerError, "文件保存失败，请稍后重试")
-		return
-	}
-	writeJSON(w, http.StatusCreated, map[string]string{
-		"url": cleanBaseURL(a.config.PublicBaseURL) + "/images/" + name,
-	})
-}
-
-func readSingleUpload(reader *multipart.Reader) ([]byte, uploadType, error) {
-	var data []byte
-	var declared uploadType
-	found := false
+	results := make([]result, 0, maxUploadFiles)
+	count := 0
 	for {
 		part, err := reader.NextPart()
 		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
-			return nil, uploadType{}, err
+			writeError(w, http.StatusBadRequest, "上传请求格式不正确")
+			return
 		}
-
-		if part.FormName() != "image" || part.FileName() == "" || found {
+		count++
+		if count > maxUploadFiles {
 			_ = part.Close()
-			return nil, uploadType{}, errors.New("请求只能包含一个 image 文件")
+			writeError(w, http.StatusBadRequest, "最多同时上传 9 个文件")
+			return
 		}
-		found = true
-
-		mediaType, _, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
-		if err != nil {
+		filename := part.FileName()
+		if part.FormName() != "image" || filename == "" {
 			_ = part.Close()
-			return nil, uploadType{}, errUnsupportedFile
+			writeError(w, http.StatusBadRequest, "文件字段必须是 image")
+			return
 		}
-		var ok bool
-		declared, ok = allowedUploadTypes[strings.ToLower(mediaType)]
-		if !ok {
-			_ = part.Close()
-			return nil, uploadType{}, errUnsupportedFile
-		}
-
-		data, err = io.ReadAll(io.LimitReader(part, declared.maxBytes+1))
+		data, fileType, err := readUploadPart(part)
 		closeErr := part.Close()
+		if err == nil {
+			err = closeErr
+		}
 		if err != nil {
-			return nil, uploadType{}, err
+			var maxErr *http.MaxBytesError
+			if errors.As(err, &maxErr) {
+				writeError(w, http.StatusRequestEntityTooLarge, "请求体不能超过 "+sizeLabel(maxRequestBytes))
+				return
+			}
+			results = append(results, result{Filename: filename, Status: "failed", Error: uploadErrorMessage(err)})
+			continue
 		}
-		if closeErr != nil {
-			return nil, uploadType{}, closeErr
+		if !fileType.matches(data) {
+			results = append(results, result{Filename: filename, Status: "failed", Error: "文件内容与声明的类型不一致"})
+			continue
 		}
-		if int64(len(data)) > declared.maxBytes {
-			return nil, uploadType{}, &fileTooLargeError{maxBytes: declared.maxBytes}
+		name, err := a.persistImage(data, fileType.extension)
+		if err != nil {
+			a.logger.Error("persist uploaded file", "error", err)
+			results = append(results, result{Filename: filename, Status: "failed", Error: "文件保存失败，请稍后重试"})
+			continue
 		}
-		if len(data) == 0 {
-			return nil, uploadType{}, errors.New("文件不能为空")
-		}
+		results = append(results, result{Filename: filename, Status: "uploaded", URL: cleanBaseURL(a.config.PublicBaseURL) + "/images/" + name})
 	}
-	if !found {
-		return nil, uploadType{}, errors.New("请选择要上传的文件")
+	if count == 0 {
+		writeError(w, http.StatusBadRequest, "请选择要上传的文件")
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"results": results})
+}
+
+func readUploadPart(part *multipart.Part) ([]byte, uploadType, error) {
+	mediaType, _, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, uploadType{}, errUnsupportedFile
+	}
+	declared, ok := allowedUploadTypes[strings.ToLower(mediaType)]
+	if !ok {
+		return nil, uploadType{}, errUnsupportedFile
+	}
+	data, err := io.ReadAll(io.LimitReader(part, declared.maxBytes+1))
+	if err != nil {
+		return nil, uploadType{}, err
+	}
+	if int64(len(data)) > declared.maxBytes {
+		return nil, uploadType{}, &fileTooLargeError{maxBytes: declared.maxBytes}
+	}
+	if len(data) == 0 {
+		return nil, uploadType{}, errors.New("文件不能为空")
 	}
 	return data, declared, nil
+}
+
+func uploadErrorMessage(err error) string {
+	var sizeErr *fileTooLargeError
+	if errors.As(err, &sizeErr) {
+		return "文件不能超过 " + sizeLabel(sizeErr.maxBytes)
+	}
+	if errors.Is(err, errUnsupportedFile) {
+		return "不支持的文件类型"
+	}
+	return err.Error()
 }
 
 func (kind uploadType) matches(data []byte) bool {
@@ -168,6 +188,18 @@ func (kind uploadType) matches(data []byte) bool {
 	}
 
 	switch kind.mime {
+	case "audio/mpeg":
+		return bytes.HasPrefix(data, []byte("ID3")) || (len(data) >= 2 && data[0] == 0xff && data[1]&0xe0 == 0xe0)
+	case "audio/wav":
+		return len(data) >= 12 && bytes.Equal(data[:4], []byte("RIFF")) && bytes.Equal(data[8:12], []byte("WAVE"))
+	case "audio/ogg":
+		return bytes.HasPrefix(data, []byte("OggS"))
+	case "audio/mp4":
+		return validISOBaseMedia(data)
+	case "video/mp4", "video/quicktime":
+		return validISOBaseMedia(data)
+	case "video/webm":
+		return bytes.HasPrefix(data, []byte{0x1a, 0x45, 0xdf, 0xa3})
 	case "application/pdf":
 		return bytes.HasPrefix(data, []byte("%PDF-"))
 	case "text/plain", "text/markdown":
@@ -183,6 +215,14 @@ func (kind uploadType) matches(data []byte) bool {
 	default:
 		return false
 	}
+}
+
+func validISOBaseMedia(data []byte) bool {
+	if len(data) < 12 {
+		return false
+	}
+	// The first box must be a valid size/type pair and an ftyp box.
+	return bytes.Equal(data[4:8], []byte("ftyp"))
 }
 
 func detectImageType(data []byte) (uploadType, bool) {
