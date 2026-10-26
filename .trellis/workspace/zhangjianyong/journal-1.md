@@ -91,3 +91,29 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 4: 完成令牌媒体上传接口与ecs2部署
+<!-- trellis-session: v=2 fp=cfcf30c60fa2d068 -->
+
+**Date**: 2026-10-27
+**Task**: 完成令牌媒体上传接口与ecs2部署
+**Branch**: `feat/token-media-upload`
+
+### Summary
+
+完成NEWAPI_MEDIA_UPLOAD_TOKENS鉴权、单文件及批量上传接口、测试和接口文档，部署ecs2并通过公网上传验证。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `140874a` | feat(upload): 支持配置令牌的媒体上传接口并补齐部署文档 |
+
+### Testing
+
+- [OK] go test、go vet、race及Linux静态构建通过；真实客户端、公网52MiB上传和测试文件清理通过。
+
+### Status
+
+[OK] **Completed**
