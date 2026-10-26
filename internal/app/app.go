@@ -54,6 +54,8 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /api/logout", a.handleLogout)
 	mux.HandleFunc("GET /api/session", a.handleSession)
 	mux.HandleFunc("POST /api/images", a.requireAPIAuth(a.handleUpload))
+	mux.HandleFunc("POST /api/v1/media/images", a.requireUploadToken(a.handleMediaUpload))
+	mux.HandleFunc("POST /api/v1/media/images/batch", a.requireUploadToken(a.handleMediaBatchUpload))
 	mux.HandleFunc("GET /images/{name}", a.handleImage)
 	mux.HandleFunc("GET /healthz", a.handleHealth)
 	return a.securityHeaders(mux)

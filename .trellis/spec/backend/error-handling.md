@@ -20,10 +20,12 @@ Successful JSON responses are written with `writeJSON`; failures use
 {"error":"human-readable Chinese message"}
 ```
 
-Preserve the status behavior in `image-host-contract.md`: malformed user input
-is `400`, unauthenticated requests are `401`, unsupported/spoofed file content
-is `415`, and oversized input is `413`. Validate before persisting so rejected
-uploads leave no file behind.
+Preserve the route-specific status behavior in `image-host-contract.md`.
+Token media endpoints use `400` for malformed input, `401` for missing/invalid
+credentials, `415` for unsupported/spoofed content, and `413` for oversized
+input. Legacy `/api/images` keeps its `201` response with item-level failures.
+Token batch failures clean this request staged/published files; never remove
+pre-existing public files.
 
 ## Patterns to Keep
 

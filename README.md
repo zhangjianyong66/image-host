@@ -33,6 +33,61 @@ go run ./cmd/image-host
 | `UPLOAD_DIR` | 否 | `./uploads` | 上传文件持久化目录 |
 | `PUBLIC_BASE_URL` | 否 | `http://localhost:8080` | 返回给用户的公开链接前缀 |
 | `COOKIE_SECURE` | 否 | `true` | HTTPS 部署设为 `true`，本地 HTTP 设为 `false` |
+| `NEWAPI_MEDIA_UPLOAD_TOKENS` | 否 | 空（禁用） | API 上传令牌，每个至少 32 字符，多个用逗号分隔 |
+
+## Token 上传接口
+
+完整请求、响应、类型限制和错误说明见 [上传 API 文档](docs/api.md)。
+
+自动化工具可使用 `Authorization: Bearer <token>` 上传，无需网页登录。
+在生产配置文件 `/etc/image-host/image-host.env` 中增加：
+
+```dotenv
+NEWAPI_MEDIA_UPLOAD_TOKENS=替换为随机令牌
+```
+
+使用 `openssl rand -hex 32` 生成随机令牌，填写到上面的配置中，并将同一枚令牌设置为调用工具的 `NEWAPI_MEDIA_UPLOAD_TOKENS`。不要使用示例文字作为真实令牌，也不要把令牌提交到 Git。配置文件应限制访问权限；修改后需要重启图床服务才能生效。
+
+配置支持逗号分隔的多个令牌，例如轮换时暂时同时保留新旧令牌；每枚至少 32 个字符，只允许英文字母、数字、`-._~+/` 和末尾的 `=`。空配置禁用这两个接口，错误或缺失令牌返回 `401`。令牌没有自动过期时间，删除配置中的对应令牌并重启即可撤销。
+
+本地可将配置写入 `.env`（不要提交），与上面的 `UPLOAD_PASSWORD`、`SESSION_SECRET` 等配置一起加载。若 `.env` 仅包含上传令牌，启动前还需设置原有的上传密码和会话签名密钥。程序本身只读取环境变量，不会自动读取 `.env`：
+
+```bash
+set -a
+. ./.env
+set +a
+go run ./cmd/image-host
+```
+
+单文件接口使用 multipart 字段 `file`：
+
+```bash
+curl --fail-with-body https://image.zhangjianyong.top/api/v1/media/images \
+  -H "Authorization: Bearer ${NEWAPI_MEDIA_UPLOAD_TOKENS%%,*}" \
+  -F 'file=@./picture.png;type=image/png'
+```
+
+成功返回 `201` 和 `{"filename":"picture.png","url":"https://image.zhangjianyong.top/images/0123456789abcdef0123456789abcdef.png"}`。
+
+批量接口支持 1–9 个重复的 `file` 字段：
+
+```bash
+curl --fail-with-body https://image.zhangjianyong.top/api/v1/media/images/batch \
+  -H "Authorization: Bearer ${NEWAPI_MEDIA_UPLOAD_TOKENS%%,*}" \
+  -F 'file=@./one.png;type=image/png' \
+  -F 'file=@./two.png;type=image/png'
+```
+
+成功返回 `201` 和 `{"items":[{"filename":"one.png","url":"..."},{"filename":"two.png","url":"..."}]}`，顺序与请求一致。虽然接口路径包含 `images`，同样支持本项目允许的音频、视频和文档，大小限制与网页上传一致。
+
+请求先在私有临时目录逐文件校验和暂存，全部成功后发布；任何一项校验或保存失败，整批返回错误并清理本次文件。格式、字段或数量错误返回 `400`，超出大小限制返回 `413`，类型不支持或内容不匹配返回 `415`，存储失败返回 `500`，错误响应统一为 `{"error":"错误说明"}`。这与网页接口 `/api/images` 的逐项成功/失败结果不同；网页仍通过登录 Cookie 上传。
+
+媒体生成工具配置：
+
+```dotenv
+IMAGE_HOST_BASE_URL=https://image.zhangjianyong.top
+NEWAPI_MEDIA_UPLOAD_TOKENS=与服务端配置一致的令牌
+```
 
 ## 检查与构建
 
@@ -72,4 +127,4 @@ ecs2 使用 root cron 和 `/root/ssl_auto_renew/ssl_auto_renew.sh` 管理证书�
 image.zhangjianyong.top:/usr/local/nginx/conf/conf.d/image.zhangjianyong.top.conf
 ```
 
-Nginx 的 ACME 验证目录为 `/var/www/letsencrypt`。续期后应使用 `/usr/local/nginx/sbin/nginx -t` 检查配置，并通过 deploy hook reload Nginx。
+Nginx 的 ACME 验证目录为 `/var/www/letsencrypt`。续期后应使用 `/usr/sbin/nginx -c /usr/local/nginx/conf/nginx.conf -t` 检查配置，并通过 deploy hook reload Nginx。

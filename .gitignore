@@ -4,3 +4,8 @@
 !/uploads/.gitkeep
 *.test
 coverage.out
+
+# 本地环境配置可能包含密钥
+.env
+.env.*
+!.env.example

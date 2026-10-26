@@ -22,6 +22,7 @@ type Config struct {
 	SessionSecret  string
 	PublicBaseURL  string
 	CookieSecure   bool
+	UploadTokens   []string
 }
 
 // LoadConfig reads configuration from environment variables.
@@ -38,6 +39,11 @@ func LoadConfig() (Config, error) {
 		SessionSecret:  os.Getenv("SESSION_SECRET"),
 		PublicBaseURL:  envOrDefault("PUBLIC_BASE_URL", defaultPublicBaseURL),
 		CookieSecure:   secure,
+	}
+	if raw := strings.TrimSpace(os.Getenv("NEWAPI_MEDIA_UPLOAD_TOKENS")); raw != "" {
+		for _, token := range strings.Split(raw, ",") {
+			cfg.UploadTokens = append(cfg.UploadTokens, strings.TrimSpace(token))
+		}
 	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
@@ -58,6 +64,11 @@ func (c Config) Validate() error {
 	}
 	if len(c.SessionSecret) < 32 {
 		return errors.New("SESSION_SECRET 至少需要 32 个字符")
+	}
+	for _, token := range c.UploadTokens {
+		if len(token) < 32 || !validBearerToken(token) {
+			return errors.New("NEWAPI_MEDIA_UPLOAD_TOKENS 每个令牌至少需要 32 个字符，且必须使用合法的 Bearer 令牌字符，不能包含空项")
+		}
 	}
 
 	u, err := url.Parse(c.PublicBaseURL)

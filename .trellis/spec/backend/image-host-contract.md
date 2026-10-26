@@ -67,7 +67,61 @@ The server owns the stored filename, validates the extension from file content, 
 
 ## Infrastructure Boundary
 
-- The ecs2 Nginx binary is `/usr/local/nginx/sbin/nginx`; do not use `systemctl reload nginx`.
+- The ecs2 Nginx master runs `/usr/sbin/nginx -c /usr/local/nginx/conf/nginx.conf`. Pass this explicit config for `-t` and `-s reload`; do not use `systemctl reload nginx`, which targets the inactive default unit.
 - Back up `/usr/local/nginx/conf/conf.d/image.zhangjianyong.top.conf` before a switch and run `nginx -t` before reload.
 - Never stop or replace `web-projects-hub-backend.service`; other domains share it.
 - Keep `image.zhangjianyong.top:/usr/local/nginx/conf/conf.d/image.zhangjianyong.top.conf` in `/root/ssl_auto_renew/domains.conf` so the existing cron workflow includes this certificate.
+
+
+## Scenario: Token-Authenticated Media Uploads
+
+### 1. Scope / Trigger
+
+Programmatic uploads compatible with the NewAPI media client. Existing browser uploads keep their Cookie and partial-success contract.
+
+### 2. Signatures
+
+- POST /api/v1/media/images: exactly one multipart file field named `file`.
+- POST /api/v1/media/images/batch: 1-9 repeated multipart file fields named `file`.
+- Both require Authorization: Bearer <token>. Cookies and query parameters do not authenticate these routes.
+
+### 3. Contracts
+
+- Optional NEWAPI_MEDIA_UPLOAD_TOKENS is a comma-separated list. Trim surrounding whitespace; require at least 32 characters and valid Bearer token characters per item. Empty configuration disables Token upload. Empty entries or invalid tokens fail startup without exposing secrets.
+- Production stores this key in /etc/image-host/image-host.env, loaded by systemd EnvironmentFile. Local .env must be explicitly exported by the shell; Go does not parse dotenv. Real .env files are Git-ignored.
+- Single upload returns 201 with filename and url. Batch returns 201 with ordered items, each containing filename and url. All supported media/document types and per-file limits from the browser contract apply.
+- Stage validated files privately inside UploadDir, then publish without overwriting filenames. Keep only one bounded file in memory. Failed requests clean staging files; publication failures roll back files published by this request. Existing public files remain untouched. This is request-level rollback, not crash-safe multi-file atomicity.
+- Compare all configured tokens using the existing constant-time hash comparison. Never log tokens or put real tokens into tracked examples.
+
+### 4. Validation & Error Matrix
+
+| Condition | Status | Behavior |
+| --- | --- | --- |
+| Missing/invalid/duplicate Authorization or no configured tokens | 401 | JSON error and WWW-Authenticate: Bearer; no parsing or file write |
+| Empty/malformed multipart, wrong field, empty file, too many files | 400 | JSON error; remove this request staging files |
+| File or body exceeds limit | 413 | JSON error; no published files from request |
+| Unsupported MIME or content mismatch | 415 | JSON error; no published files from request |
+| Staging, persistence or publication failure | 500 | Generic JSON error; internal non-secret log and cleanup |
+
+### 5. Good/Base/Bad Cases
+
+- Good: any configured token uploads PNG via file; returned URL is anonymously readable. Nine valid files yield nine ordered URLs.
+- Base: empty token configuration leaves password login and /api/images usable while new routes return 401.
+- Bad: Cookie alone, query token, wrong token, an extra single-upload part, or an invalid batch item cannot publish files.
+
+### 6. Tests Required
+
+- Configuration: trimming, multiple tokens, disabled mode, empty entries, short/invalid tokens, no secret echo.
+- Authentication: missing/invalid/duplicate headers, alternate configured token, Cookie rejection, legacy Cookie isolation.
+- Integration: single/batch URLs, nine-file success, ten-file rejection, type/size/field errors, malformed trailing multipart, later-item cleanup, publication failure rollback, anonymous reads and legacy regressions.
+- Checks: gofmt, go test, go vet, race tests, static Linux amd64 build, actual media-client smoke upload.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+Accepting UPLOAD_PASSWORD or image_host_session as a Bearer token, or returning legacy results to a client expecting items[].url.
+
+#### Correct
+
+Validate the Bearer credential against NEWAPI_MEDIA_UPLOAD_TOKENS and return the route-specific url or items[].url after validating all files.
